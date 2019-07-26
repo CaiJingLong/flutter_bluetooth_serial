@@ -13,6 +13,7 @@ import android.content.pm.PackageManager;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 
+import android.os.Build;
 import android.util.Log;
 import android.util.SparseArray;
 import android.os.AsyncTask;
@@ -116,7 +117,7 @@ public class FlutterBluetoothSerialPlugin implements MethodCallHandler, RequestP
                     if (stateSink == null) {
                         return;
                     }
-                    
+
                     final String action = intent.getAction();
                     switch (action) {
                         case BluetoothAdapter.ACTION_STATE_CHANGED:
@@ -127,7 +128,7 @@ public class FlutterBluetoothSerialPlugin implements MethodCallHandler, RequestP
                                 connection.disconnect();
                             }
                             connections.clear();
-                            
+
                             stateSink.success(intent.getIntExtra(BluetoothAdapter.EXTRA_STATE, BluetoothDevice.ERROR));
                             break;
                     }
@@ -167,7 +168,7 @@ public class FlutterBluetoothSerialPlugin implements MethodCallHandler, RequestP
                             final int pairingVariant = intent.getIntExtra(BluetoothDevice.EXTRA_PAIRING_VARIANT, BluetoothDevice.ERROR);
                             Log.d(TAG, "Pairing request (variant " + pairingVariant + ") incoming from " + device.getAddress());
                             switch (pairingVariant) {
-                                case BluetoothDevice.PAIRING_VARIANT_PIN: 
+                                case BluetoothDevice.PAIRING_VARIANT_PIN:
                                     // Simplest method - 4 digit number
                                 {
                                     final BroadcastReceiver.PendingResult broadcastResult = this.goAsync();
@@ -185,7 +186,7 @@ public class FlutterBluetoothSerialPlugin implements MethodCallHandler, RequestP
                                                     final String passkeyString = (String) handlerResult;
                                                     final byte[] passkey = passkeyString.getBytes();
                                                     Log.d(TAG, "Trying to set passkey for pairing to " + passkeyString);
-                                                    device.setPin(passkey); 
+                                                    device.setPin(passkey);
                                                     broadcastResult.abortBroadcast();
                                                 }
                                                 catch (Exception ex) {
@@ -221,7 +222,7 @@ public class FlutterBluetoothSerialPlugin implements MethodCallHandler, RequestP
                                 // Note: `BluetoothDevice.PAIRING_VARIANT_PASSKEY` seems to be unsupported anyway... Probably is abandoned.
                                 // See https://android.googlesource.com/platform/frameworks/base/+/master/core/java/android/bluetooth/BluetoothDevice.java#1528
 
-                                case BluetoothDevice.PAIRING_VARIANT_PASSKEY_CONFIRMATION: 
+                                case BluetoothDevice.PAIRING_VARIANT_PASSKEY_CONFIRMATION:
                                     // Displayed passkey on the other device should be the same as received here.
                                 case 3: //case BluetoothDevice.PAIRING_VARIANT_CONSENT: // @TODO , Symbol not found?
                                     // The simplest, but much less secure method - just yes or no, without any auth.
@@ -245,7 +246,13 @@ public class FlutterBluetoothSerialPlugin implements MethodCallHandler, RequestP
                                                     Log.d(TAG, "Trying to set pairing confirmation to " + confirm + " (key: " + pairingKey + ")");
                                                     // @WARN `BLUETOOTH_PRIVILEGED` permission required, but might be 
                                                     // unavailable for thrid party apps on newer versions of Androids.
-                                                    device.setPairingConfirmation(confirm);
+                                                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
+                                                        try{
+                                                            device.setPairingConfirmation(confirm);
+                                                        } catch (Exception e){
+
+                                                        }
+                                                    }
                                                     broadcastResult.abortBroadcast();
                                                 }
                                                 catch (Exception ex) {
@@ -275,7 +282,7 @@ public class FlutterBluetoothSerialPlugin implements MethodCallHandler, RequestP
                                     });
                                     break;
                                 }
-                                
+
                                 case 4: //case BluetoothDevice.PAIRING_VARIANT_DISPLAY_PASSKEY: // @TODO , Symbol not found?
                                     // This pairing method requires to enter the generated and displayed pairing key
                                     // on the remote device. It looks like basic asymmetric cryptography was used.
@@ -382,7 +389,7 @@ public class FlutterBluetoothSerialPlugin implements MethodCallHandler, RequestP
                     catch (IllegalArgumentException ex) {
                         // Ignore `Receiver not registered` exception
                     }
-                    
+
                     bluetoothAdapter.cancelDiscovery();
 
                     if (discoverySink != null) {
@@ -632,7 +639,7 @@ public class FlutterBluetoothSerialPlugin implements MethodCallHandler, RequestP
                     case BluetoothDevice.BOND_NONE:
                         result.error("bond_error", "device already unbonded", null);
                         break methodCallDispatching;
-                    default: 
+                    default:
                         // Proceed.
                         break;
                 }
@@ -680,13 +687,13 @@ public class FlutterBluetoothSerialPlugin implements MethodCallHandler, RequestP
                     case BluetoothDevice.BOND_BONDED:
                         result.error("bond_error", "device already bonded", null);
                         break methodCallDispatching;
-                    default: 
+                    default:
                         // Proceed.
                         break;
                 }
 
                 bondStateBroadcastReceiver = new BroadcastReceiver() {
-                    @Override 
+                    @Override
                     public void onReceive(Context context, Intent intent) {
                         switch (intent.getAction()) {
                             // @TODO . BluetoothDevice.ACTION_PAIRING_CANCEL
@@ -799,15 +806,15 @@ public class FlutterBluetoothSerialPlugin implements MethodCallHandler, RequestP
                         intent.addAction(BluetoothAdapter.ACTION_DISCOVERY_FINISHED);
                         intent.addAction(BluetoothDevice.ACTION_FOUND);
                         registrar.activeContext().registerReceiver(discoveryReceiver, intent);
-                        
+
                         bluetoothAdapter.startDiscovery();
-                        
+
                         result.success(null);
                     }
                 });
                 break;
 
-            case "cancelDiscovery": 
+            case "cancelDiscovery":
                 Log.d(TAG, "Canceling discovery");
                 try {
                     registrar.activeContext().unregisterReceiver(discoveryReceiver);
@@ -817,12 +824,12 @@ public class FlutterBluetoothSerialPlugin implements MethodCallHandler, RequestP
                 }
 
                 bluetoothAdapter.cancelDiscovery();
-                
+
                 if (discoverySink != null) {
                     discoverySink.endOfStream();
                     discoverySink = null;
                 }
-                
+
                 result.success(null);
                 break;
 
@@ -879,7 +886,7 @@ public class FlutterBluetoothSerialPlugin implements MethodCallHandler, RequestP
                     try {
                         connection.connect(address);
                         registrar.activity().runOnUiThread(new Runnable() {
-                            @Override 
+                            @Override
                             public void run() {
                                 result.success(id);
                             }
@@ -887,7 +894,7 @@ public class FlutterBluetoothSerialPlugin implements MethodCallHandler, RequestP
                     }
                     catch (Exception ex) {
                         registrar.activity().runOnUiThread(new Runnable() {
-                            @Override 
+                            @Override
                             public void run() {
                                 result.error("connect_error", ex.getMessage(), exceptionToString(ex));
                             }
@@ -918,14 +925,14 @@ public class FlutterBluetoothSerialPlugin implements MethodCallHandler, RequestP
                     result.error("invalid_argument", "there is no connection with provided id", null);
                     break;
                 }
-                
+
                 if (call.hasArgument("string")) {
                     String string = call.argument("string");
                     AsyncTask.execute(() -> {
                         try {
                             connection.write(string.getBytes());
                             registrar.activity().runOnUiThread(new Runnable() {
-                                @Override 
+                                @Override
                                 public void run() {
                                     result.success(null);
                                 }
@@ -933,7 +940,7 @@ public class FlutterBluetoothSerialPlugin implements MethodCallHandler, RequestP
                         }
                         catch (Exception ex) {
                             registrar.activity().runOnUiThread(new Runnable() {
-                                @Override 
+                                @Override
                                 public void run() {
                                     result.error("write_error", ex.getMessage(), exceptionToString(ex));
                                 }
@@ -947,7 +954,7 @@ public class FlutterBluetoothSerialPlugin implements MethodCallHandler, RequestP
                         try {
                             connection.write(bytes);
                             registrar.activity().runOnUiThread(new Runnable() {
-                                @Override 
+                                @Override
                                 public void run() {
                                     result.success(null);
                                 }
@@ -955,7 +962,7 @@ public class FlutterBluetoothSerialPlugin implements MethodCallHandler, RequestP
                         }
                         catch (Exception ex) {
                             registrar.activity().runOnUiThread(new Runnable() {
-                                @Override 
+                                @Override
                                 public void run() {
                                     result.error("write_error", ex.getMessage(), exceptionToString(ex));
                                 }
@@ -986,7 +993,7 @@ public class FlutterBluetoothSerialPlugin implements MethodCallHandler, RequestP
     private void ensurePermissions(EnsurePermissionsCallback callbacks) {
         if (
             ContextCompat.checkSelfPermission(registrar.activity(),
-                Manifest.permission.ACCESS_COARSE_LOCATION) 
+                Manifest.permission.ACCESS_COARSE_LOCATION)
                     != PackageManager.PERMISSION_GRANTED
         ) {
             ActivityCompat.requestPermissions(registrar.activity(),
@@ -1090,7 +1097,7 @@ public class FlutterBluetoothSerialPlugin implements MethodCallHandler, RequestP
     /// Helper wrapper class for `BluetoothConnection`
     private class BluetoothConnectionWrapper extends BluetoothConnection {
         private final int id;
-        
+
         protected EventSink readSink;
 
         protected EventChannel readChannel;
